@@ -96,3 +96,4 @@ assets/icon.png               App icon (copied from web app's logo.png)
 - `POST /api/community/voice-message` — voice / text message to SW
 - `POST /api/upload` — voice file upload (returns `{ url }`)
 # janmanindia-RN
+# janmanindia-RN
