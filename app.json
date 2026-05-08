@@ -42,7 +42,24 @@
     },
     "plugins": [
       "expo-av",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Janman accesses your photos so you can attach a photo of your government ID for verification.",
+          "cameraPermission": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ]
     ],
     "extra": {
       "apiBase": "https://app.janmanindia.org",
