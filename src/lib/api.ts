@@ -6,6 +6,7 @@ const API_BASE: string =
   'https://app.janmanindia.org';
 
 const COOKIE_KEY = 'janmanindia.cookie';
+const SESSION_MARKER_KEY = 'janmanindia.session';
 
 let cachedCookie: string | null = null;
 
@@ -21,12 +22,9 @@ async function setCookie(cookie: string | null): Promise<void> {
   else await AsyncStorage.setItem(COOKIE_KEY, cookie);
 }
 
-/** Pull the auth cookie out of a Set-Cookie response header. The web app
- *  uses a single httpOnly cookie called `auth-token`; we keep only that
- *  pair so we don't accidentally replay analytics / Vercel cookies. */
 function extractAuthCookie(setCookieHeader: string | null): string | null {
   if (!setCookieHeader) return null;
-  const match = setCookieHeader.match(/auth-token=[^;]+/);
+  const match = setCookieHeader.match(/auth_token=[^;]+/);
   return match ? match[0] : null;
 }
 
@@ -46,13 +44,16 @@ export async function api<T = unknown>(
   if (!headers.has('Content-Type') && init.body) {
     headers.set('Content-Type', 'application/json');
   }
+  // On native, manually replay the cookie header — RN's fetch lets us.
+  // Browsers strip the Cookie header from JS, so we rely on credentials:'include'
+  // and the browser's own cookie jar instead.
   if (cookie) headers.set('Cookie', cookie);
 
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
 
   let res: Response;
   try {
-    res = await fetch(url, { ...init, headers });
+    res = await fetch(url, { ...init, headers, credentials: 'include' });
   } catch (err) {
     return { ok: false, status: 0, data: null, error: 'Network error' };
   }
@@ -74,10 +75,12 @@ export async function api<T = unknown>(
 }
 
 export async function login(email: string, password: string): Promise<ApiResponse<{ role: string }>> {
-  return api<{ role: string }>('/api/auth/login', {
+  const res = await api<{ role: string }>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
+  if (res.ok) await AsyncStorage.setItem(SESSION_MARKER_KEY, '1');
+  return res;
 }
 
 export interface RegisterInput {
@@ -95,10 +98,12 @@ export interface RegisterInput {
 }
 
 export async function register(input: RegisterInput): Promise<ApiResponse<{ role?: string; redirectTo?: string; message?: string }>> {
-  return api<{ role?: string; redirectTo?: string; message?: string }>('/api/auth/register', {
+  const res = await api<{ role?: string; redirectTo?: string; message?: string }>('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(input),
   });
+  if (res.ok) await AsyncStorage.setItem(SESSION_MARKER_KEY, '1');
+  return res;
 }
 
 export async function uploadFile(uri: string, name: string, mimeType: string): Promise<ApiResponse<{ url: string }>> {
@@ -124,6 +129,7 @@ export async function uploadFile(uri: string, name: string, mimeType: string): P
 export async function logout(): Promise<void> {
   await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
   await setCookie(null);
+  await AsyncStorage.removeItem(SESSION_MARKER_KEY);
 }
 
 export async function getMe(): Promise<{
@@ -140,7 +146,8 @@ export async function getMe(): Promise<{
 }
 
 export async function hasSession(): Promise<boolean> {
-  return (await getCookie()) !== null;
+  if ((await getCookie()) !== null) return true;
+  return (await AsyncStorage.getItem(SESSION_MARKER_KEY)) === '1';
 }
 
 export { API_BASE };

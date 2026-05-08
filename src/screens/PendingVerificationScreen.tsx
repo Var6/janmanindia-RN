@@ -43,12 +43,13 @@ export function PendingVerificationScreen({
       <View style={styles.container}>
         <Image source={require('../../assets/icon.png')} style={styles.logo} />
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>⏳ Pending verification</Text>
+          <Text style={styles.badgeText}>⏳ Waiting for social worker</Text>
         </View>
-        <Text style={styles.title}>Thanks for signing up!</Text>
+        <Text style={styles.title}>Waiting for your social worker to connect</Text>
+        <Text style={styles.titleHi}>आपके सामाजिक कार्यकर्ता से जुड़ने का इंतज़ार है</Text>
         <Text style={styles.body}>
-          Your account{email ? ` (${email})` : ''} has been created and is awaiting verification by a Janmanindia social
-          worker. This usually takes 1–2 business days.
+          We received your details{email && !email.includes('noreply') ? ` (${email})` : ''}. A Janman social worker will
+          listen to your voice introduction and call you back — usually within 48 hours.
         </Text>
         <Text style={styles.body}>
           Once verified, you’ll be able to file cases, book appointments, and access community support directly from this
@@ -75,7 +76,8 @@ const styles = StyleSheet.create({
   logo: { width: 72, height: 72, marginBottom: spacing.lg, resizeMode: 'contain' },
   badge: { backgroundColor: colors.errorBg, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.sm, marginBottom: spacing.md },
   badgeText: { color: colors.error, fontWeight: '700', fontSize: 12 },
-  title: { fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: spacing.md },
+  title: { fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 4 },
+  titleHi: { fontSize: 16, fontWeight: '700', color: colors.muted, textAlign: 'center', marginBottom: spacing.md },
   body: { fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20, marginBottom: spacing.md },
   msg: { fontSize: 13, color: colors.text, textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.sm },
   btn: { backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.xl, alignItems: 'center', marginTop: spacing.lg, minWidth: 200 },

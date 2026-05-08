@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { getMe, logout } from '../lib/api';
 import { colors, radius, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
 import { setLocale, getSupportedLocales, getLocale, LOCALE_NAMES, Locale } from '../lib/i18n';
+import { useTabBarOnScroll } from '../lib/tabBarVisibility';
 
 export function ProfileScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
   useLocale();
@@ -20,10 +21,23 @@ export function ProfileScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
     })();
   }, []);
 
+  function doSignOut() {
+    logout().catch(() => undefined);
+    onLoggedOut();
+  }
+
   function confirmLogout() {
+    if (Platform.OS === 'web') {
+      // Alert.alert on web falls back to window.alert and never fires onPress.
+      const ok = typeof window !== 'undefined' && window.confirm
+        ? window.confirm(t('signOutConfirm'))
+        : true;
+      if (ok) doSignOut();
+      return;
+    }
     Alert.alert(t('signOutQ'), t('signOutConfirm'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('signOut'), style: 'destructive', onPress: async () => { await logout(); onLoggedOut(); } },
+      { text: t('signOut'), style: 'destructive', onPress: doSignOut },
     ]);
   }
 
@@ -82,7 +96,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  container: { padding: spacing.lg },
+  container: { padding: spacing.lg, paddingBottom: 120 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: spacing.lg },
   section: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: spacing.md, marginBottom: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },

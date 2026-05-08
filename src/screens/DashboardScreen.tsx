@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { useTabBarOnScroll } from '../lib/tabBarVisibility';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
@@ -50,8 +51,9 @@ export function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}>
+        contentContainerStyle={[styles.container, { paddingBottom: 96 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        {...useTabBarOnScroll()}>
 
         <Text style={styles.greet}>{t('dash_hi')} {name ? name.split(' ')[0] : ''} 👋</Text>
         <Text style={styles.greetSub}>{t('dash_help')}</Text>

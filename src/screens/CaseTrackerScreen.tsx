@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
 import { api } from '../lib/api';
+import { useTabBarOnScroll } from '../lib/tabBarVisibility';
 import { colors, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
 
@@ -30,8 +31,9 @@ export function CaseTrackerScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        {...useTabBarOnScroll()}>
         <Text style={styles.title}>{t('track_title')}</Text>
         <Text style={styles.subtitle}>{cases.length} {cases.length === 1 ? t('track_count_one') : t('track_count_other')}</Text>
 

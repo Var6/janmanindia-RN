@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { api, getMe } from '../lib/api';
 import { colors, radius, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
+import { useTabBarOnScroll } from '../lib/tabBarVisibility';
 
 interface UserRef { _id: string; name: string; role?: string }
 interface Appointment {
@@ -35,8 +36,9 @@ export function AppointmentsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        {...useTabBarOnScroll()}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{t('apts_title')}</Text>

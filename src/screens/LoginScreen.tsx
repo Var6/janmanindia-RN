@@ -5,7 +5,7 @@ import { login } from '../lib/api';
 import { colors, radius, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
 
-export function LoginScreen({ onLoggedIn, onSignUp }: { onLoggedIn: () => void; onSignUp: () => void }) {
+export function LoginScreen({ onLoggedIn, onSignUp, onVoiceSignUp }: { onLoggedIn: () => void; onSignUp: () => void; onVoiceSignUp: () => void }) {
   useLocale();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,8 +65,22 @@ export function LoginScreen({ onLoggedIn, onSignUp }: { onLoggedIn: () => void; 
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t('login_signin')}</Text>}
           </TouchableOpacity>
 
+          <View style={styles.divider}>
+            <View style={styles.line} />
+            <Text style={styles.dividerText}>New here? · पहली बार?</Text>
+            <View style={styles.line} />
+          </View>
+
+          <TouchableOpacity onPress={onVoiceSignUp} style={styles.voiceBtn}>
+            <Text style={styles.voiceBtnEmoji}>🎤</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.voiceBtnText}>Record a voice introduction</Text>
+              <Text style={styles.voiceBtnSub}>आवाज़ में अपना नाम और नंबर बताएं</Text>
+            </View>
+          </TouchableOpacity>
+
           <Text style={styles.hint} onPress={onSignUp}>
-            {t('login_noAccount')} <Text style={styles.link}>Sign up</Text>
+            <Text style={styles.link}>Sign up with email instead</Text>
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -89,4 +103,11 @@ const styles = StyleSheet.create({
   err: { color: colors.error, backgroundColor: colors.errorBg, padding: spacing.sm, borderRadius: radius.sm, fontSize: 13 },
   hint: { color: colors.muted, fontSize: 13, textAlign: 'center', marginTop: spacing.lg },
   link: { color: colors.accent, fontWeight: '700' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
+  line: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontSize: 11, color: colors.muted, fontWeight: '700', marginHorizontal: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
+  voiceBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed', borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md, gap: spacing.md },
+  voiceBtnEmoji: { fontSize: 32 },
+  voiceBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  voiceBtnSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 },
 });
