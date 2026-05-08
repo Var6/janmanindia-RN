@@ -41,7 +41,8 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-av"
+      "expo-av",
+      "expo-asset"
     ],
     "extra": {
       "apiBase": "https://app.janmanindia.org",
