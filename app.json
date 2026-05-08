@@ -26,6 +26,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "org.janmanindia.community",
+      "versionCode": 1,
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
@@ -43,7 +44,7 @@
       "expo-av"
     ],
     "extra": {
-      "apiBase": "http://localhost:3000",
+      "apiBase": "https://app.janmanindia.org",
       "eas": {
         "projectId": "eac6f57e-ed53-4a5d-899f-ddc4d60a9bbe"
       }
