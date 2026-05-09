@@ -7,6 +7,7 @@ import { api, getMe } from '../lib/api';
 import { colors, radius, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
 import { useTabBarOnScroll } from '../lib/tabBarVisibility';
+import { SkeletonRow } from '../components/Skeleton';
 
 interface UserRef { _id: string; name: string; role?: string }
 interface Appointment {
@@ -23,21 +24,23 @@ export function AppointmentsScreen() {
   useLocale();
   const [appts, setAppts] = useState<Appointment[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showBook, setShowBook] = useState(false);
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     const r = await api<{ appointments: Appointment[] }>('/api/appointments');
     setRefreshing(false);
+    setLoading(false);
     if (r.ok && r.data?.appointments) setAppts(r.data.appointments);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(false); }, [load]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
         {...useTabBarOnScroll()}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
@@ -49,7 +52,13 @@ export function AppointmentsScreen() {
           </TouchableOpacity>
         </View>
 
-        {appts.length === 0 ? (
+        {loading ? (
+          <>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </>
+        ) : appts.length === 0 ? (
           <Card><Text style={styles.empty}>{t('apts_empty')}</Text></Card>
         ) : (
           appts.map((a) => (

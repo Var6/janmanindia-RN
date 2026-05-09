@@ -18,6 +18,7 @@ export function SpeakToUsScreen() {
   const [duration, setDuration] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const tabBarScroll = useTabBarOnScroll();
 
   async function startRecording() {
     try {
@@ -103,7 +104,7 @@ export function SpeakToUsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]} keyboardShouldPersistTaps="handled" {...useTabBarOnScroll()}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]} keyboardShouldPersistTaps="handled" {...tabBarScroll}>
         <TouchableOpacity onPress={() => nav.navigate('SOS')} style={styles.sosCard} activeOpacity={0.85}>
           <Text style={styles.sosEmoji}>🚨</Text>
           <View style={{ flex: 1 }}>

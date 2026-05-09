@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Linking, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Linking, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBadge } from '../components/StatusBadge';
+import { Skeleton } from '../components/Skeleton';
 import { api } from '../lib/api';
 import { colors, radius, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
+import { useTabBarOnScroll } from '../lib/tabBarVisibility';
 
 interface DocMeta { _id?: string; label: string; url: string; uploadedAt: string }
 interface DiaryEntry { _id: string; date: string; findings: string }
@@ -61,42 +63,72 @@ export function CaseDetailScreen({ route }: { route: { params: { caseId: string 
   const [data, setData] = useState<CaseFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const tabBarScroll = useTabBarOnScroll();
 
   useEffect(() => {
+    if (!caseId) { setLoading(false); setErr('Missing case ID'); return; }
     (async () => {
-      const r = await api<{ case: CaseFull }>(`/api/cases/${caseId}`);
-      setLoading(false);
-      if (!r.ok) { setErr(r.error ?? 'Failed to load'); return; }
-      setData(r.data?.case ?? null);
+      try {
+        const r = await api<{ case: CaseFull }>(`/api/cases/${caseId}`);
+        setLoading(false);
+        if (!r.ok) { setErr(r.error ?? `Failed to load (status ${r.status})`); return; }
+        const c = r.data?.case ?? null;
+        if (!c) { setErr('Case data missing in response'); return; }
+        setData(c);
+      } catch (e) {
+        setLoading(false);
+        setErr(`Unexpected error: ${String(e)}`);
+      }
     })();
   }, [caseId]);
 
   if (loading) {
-    return <SafeAreaView style={styles.safe}><ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} /></SafeAreaView>;
-  }
-  if (err || !data) {
-    return <SafeAreaView style={styles.safe}><Text style={styles.err}>{err || t('detail_notFound')}</Text></SafeAreaView>;
+    return <CaseDetailSkeleton />;
   }
 
-  const c = data;
-  const eq = c.enquiry;
-  const appearances = [...(c.courtAppearances ?? [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const diary = [...(c.caseDiary ?? [])].reverse();
+  if (err || !data) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.centered}>
+          <Text style={styles.errIcon}>⚠️</Text>
+          <Text style={styles.errTitle}>{t('detail_notFound')}</Text>
+          {err ? <Text style={styles.errBody}>{err}</Text> : null}
+          <Text style={styles.errHint}>Case ID: {caseId || '—'}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  let c: CaseFull;
+  let eq: Enquiry | undefined;
+  let appearances: Appearance[];
+  let diary: DiaryEntry[];
+  try {
+    c = data;
+    eq = c.enquiry;
+    appearances = [...(c.courtAppearances ?? [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    diary = [...(c.caseDiary ?? [])].reverse();
+  } catch (e) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.centered}>
+          <Text style={styles.errIcon}>💥</Text>
+          <Text style={styles.errTitle}>Render error</Text>
+          <Text style={styles.errBody}>{String(e)}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]} {...useTabBarOnScroll()}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]} {...tabBarScroll}>
         {/* Header */}
         <View style={styles.headerRow}>
           <View style={styles.caseNumberPill}>
             <Text style={styles.caseNumberText}>📄 {c.caseNumber}</Text>
           </View>
           <StatusBadge status={c.status} />
-          {c.path && (
-            <View style={styles.pathPill}>
-              <Text style={styles.pathPillText}>{c.path === 'criminal' ? '⚖ Criminal' : '🏛 High Court'}</Text>
-            </View>
-          )}
         </View>
         <Text style={styles.title}>{c.caseTitle}</Text>
         <Text style={styles.metaSmall}>
@@ -112,76 +144,28 @@ export function CaseDetailScreen({ route }: { route: { params: { caseId: string 
           </View>
         )}
 
-        {/* Parties */}
-        <SectionTitle>Parties</SectionTitle>
-        <PartyRow label="Community" person={c.community} />
-        <PartyRow label="Litigation Member" person={c.litigationMember} />
-        <PartyRow label="Social Worker" person={c.socialWorker} />
-
-        {/* Court / case management details */}
-        {(c.courtName || c.courtCaseNumber || c.causeTitle || c.relevantSections || c.stage || c.bailAndAppearanceStatus || c.compensationStatus || c.district || c.state || c.caseType || c.eCourtLink) && (
+        {/* Your social worker — the person to call. */}
+        {c.socialWorker && (
           <>
-            <SectionTitle>Court Details</SectionTitle>
-            <Field label="Cause title" value={c.causeTitle} />
-            <Field label="Court" value={c.courtName} />
-            <Field label="Court case number" value={c.courtCaseNumber} mono />
-            <Field label="Court type" value={c.courtType} />
-            <Field label="State" value={c.state} />
+            <SectionTitle>Your Social Worker</SectionTitle>
+            <PartyRow label="Reach out to" person={c.socialWorker} />
+          </>
+        )}
+
+        {/* Where the case stands — plain language only */}
+        {(c.currentStep || c.courtName || c.district) && (
+          <>
+            <SectionTitle>Where things stand</SectionTitle>
+            <Field label="What's happening now" value={c.currentStep} multiline />
+            <Field label="Where the matter is being heard" value={c.courtName} />
             <Field label="District" value={c.district} />
-            <Field label="Case type" value={c.caseType} />
-            <Field label="Relevant sections" value={c.relevantSections} />
-            <Field label="Stage" value={c.stage} />
-            <Field label="Bail / appearance status" value={c.bailAndAppearanceStatus} />
-            <Field label="Compensation" value={c.compensationStatus} />
-            {c.eCourtLink ? (
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>e-Courts link</Text>
-                <TouchableOpacity onPress={() => Linking.openURL(c.eCourtLink!)}>
-                  <Text style={[styles.fieldValue, { color: colors.accent }]}>{c.eCourtLink}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </>
-        )}
-
-        {/* Background — for cases that existed before Janman picked them up */}
-        {(c.isExistingCase || c.currentStep || c.existingNotes) && (
-          <>
-            <SectionTitle>Background</SectionTitle>
-            {c.isExistingCase ? <Text style={styles.tag}>Pre-existing matter — Janman is monitoring</Text> : null}
-            <Field label="Current step" value={c.currentStep} multiline />
-            <Field label="Notes" value={c.existingNotes} multiline />
-          </>
-        )}
-
-        {/* Intake / enquiry */}
-        {eq && (eq.filerName || eq.victimName || eq.firNumber || eq.factsOfTheCase || (eq.issues && eq.issues.length) || (eq.petitioners && eq.petitioners.length) || (eq.respondents && eq.respondents.length)) && (
-          <>
-            <SectionTitle>Intake</SectionTitle>
-            <Field label="Filed by" value={eq.filerName} />
-            <Field label="Filer phone" value={eq.filerPhone} />
-            <Field label="Relationship with victim" value={eq.relationshipWithVictim} />
-            <Field label="Victim" value={eq.victimName} />
-            <Field label="Victim address" value={eq.victimAddress} />
-            <Field label="Victim contact" value={eq.victimContact} />
-            <Field label="Issues" value={eq.issues?.join(', ')} />
-            <Field label="Accused" value={eq.accusedNames} />
-            <Field label="Accused count" value={eq.accusedCount?.toString()} />
-            <Field label="FIR number" value={eq.firNumber} mono />
-            <Field label="Police station" value={eq.policeStation} />
-            <Field label="Place of occurrence" value={eq.placeOfOccurrence} />
-            <Field label="Petitioners" value={eq.petitioners?.join(', ')} />
-            <Field label="Respondents" value={eq.respondents?.join(', ')} />
-            <Field label="Their position" value={eq.courtThey} multiline />
-            <Field label="Our points" value={eq.ourPoints} multiline />
-            <Field label="Facts of the case" value={eq.factsOfTheCase} multiline />
           </>
         )}
 
         {/* Documents */}
         {c.documents && c.documents.length > 0 && (
           <>
-            <SectionTitle>{t('detail_documents')}</SectionTitle>
+            <SectionTitle>Papers attached</SectionTitle>
             {c.documents.map((d) => (
               <TouchableOpacity key={d._id ?? d.url} onPress={() => Linking.openURL(d.url)} style={styles.docRow}>
                 <Text style={styles.docLabel}>📎 {d.label}</Text>
@@ -191,33 +175,31 @@ export function CaseDetailScreen({ route }: { route: { params: { caseId: string 
           </>
         )}
 
-        {/* Court appearances */}
+        {/* Court appearances — what's happened in court so far */}
         {appearances.length > 0 && (
           <>
-            <SectionTitle>{t('detail_history')}</SectionTitle>
+            <SectionTitle>What's happened so far</SectionTitle>
             {appearances.map((ap) => (
               <View key={ap._id} style={styles.timelineItem}>
                 <View style={styles.timelineDot} />
                 <View style={styles.timelineBody}>
                   <Text style={styles.timelineDate}>{fmtDate(ap.date)}</Text>
                   <Text style={styles.timelineText}>{ap.dailyOrderBrief}</Text>
-                  {ap.currentStatus ? <Text style={styles.timelineMeta}>Status: {ap.currentStatus}</Text> : null}
                   {ap.nextHearingDate ? (
                     <Text style={[styles.timelineMeta, { color: colors.accent, fontWeight: '600' }]}>
-                      Next: {fmtDate(ap.nextHearingDate)}
+                      Next date: {fmtDate(ap.nextHearingDate)}
                     </Text>
                   ) : null}
-                  {ap.remarks ? <Text style={styles.timelineMeta}>Remarks: {ap.remarks}</Text> : null}
                 </View>
               </View>
             ))}
           </>
         )}
 
-        {/* Diary */}
+        {/* Diary — case worker's notes (omit raw "diary" jargon) */}
         {diary.length > 0 && (
           <>
-            <SectionTitle>{t('detail_diary')}</SectionTitle>
+            <SectionTitle>Notes from your case worker</SectionTitle>
             {diary.map((d) => (
               <View key={d._id} style={styles.timelineItem}>
                 <View style={[styles.timelineDot, { backgroundColor: colors.muted }]} />
@@ -247,6 +229,79 @@ function Field({ label, value, mono, multiline }: { label: string; value?: strin
       <Text style={styles.fieldLabel}>{label}</Text>
       <Text style={[styles.fieldValue, mono && { fontFamily: 'monospace' }, multiline && { lineHeight: 20 }]}>{value}</Text>
     </View>
+  );
+}
+
+function CaseDetailSkeleton() {
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]} pointerEvents="none">
+        {/* Header pills */}
+        <View style={styles.headerRow}>
+          <Skeleton width={120} height={24} rounded={999} />
+          <Skeleton width={80} height={24} rounded={999} />
+          <Skeleton width={100} height={24} rounded={999} />
+        </View>
+        {/* Title + meta */}
+        <Skeleton width={'85%'} height={26} />
+        <View style={{ height: 8 }} />
+        <Skeleton width={'60%'} height={26} />
+        <View style={{ height: 8 }} />
+        <Skeleton width={'40%'} height={12} />
+
+        {/* Hearing tile */}
+        <View style={[styles.hearingTile, { paddingVertical: spacing.md }]}>
+          <Skeleton width={100} height={10} />
+          <View style={{ height: 8 }} />
+          <Skeleton width={140} height={20} />
+        </View>
+
+        {/* Parties section */}
+        <View style={{ marginTop: spacing.xl, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Skeleton width={80} height={12} />
+        </View>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={styles.partyRow}>
+            <Skeleton width={120} height={10} />
+            <View style={{ height: 8 }} />
+            <Skeleton width={'70%'} height={16} />
+            <View style={{ height: 6 }} />
+            <Skeleton width={'50%'} height={12} />
+          </View>
+        ))}
+
+        {/* Court Details section */}
+        <View style={{ marginTop: spacing.xl, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Skeleton width={120} height={12} />
+        </View>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <View key={i} style={styles.fieldRow}>
+            <Skeleton width={100} height={10} />
+            <View style={{ height: 6 }} />
+            <Skeleton width={`${60 + ((i * 7) % 30)}%` as `${number}%`} height={14} />
+          </View>
+        ))}
+
+        {/* Timeline section */}
+        <View style={{ marginTop: spacing.xl, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Skeleton width={140} height={12} />
+        </View>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={styles.timelineItem}>
+            <View style={[styles.timelineDot, { backgroundColor: colors.border }]} />
+            <View style={styles.timelineBody}>
+              <Skeleton width={90} height={10} />
+              <View style={{ height: 8 }} />
+              <Skeleton width={'95%'} height={14} />
+              <View style={{ height: 4 }} />
+              <Skeleton width={'80%'} height={14} />
+              <View style={{ height: 6 }} />
+              <Skeleton width={'50%'} height={11} />
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -298,4 +353,10 @@ const styles = StyleSheet.create({
   timelineText: { fontSize: 14, color: colors.text, lineHeight: 20 },
   timelineMeta: { fontSize: 12, color: colors.muted, marginTop: 4 },
   err: { color: colors.error, padding: spacing.lg, textAlign: 'center' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
+  centeredText: { fontSize: 14, color: colors.muted, marginTop: spacing.sm },
+  errIcon: { fontSize: 56 },
+  errTitle: { fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center', marginTop: spacing.sm },
+  errBody: { fontSize: 13, color: colors.error, textAlign: 'center', marginTop: spacing.sm, paddingHorizontal: spacing.lg },
+  errHint: { fontSize: 11, color: colors.muted, fontFamily: 'monospace', marginTop: spacing.md },
 });

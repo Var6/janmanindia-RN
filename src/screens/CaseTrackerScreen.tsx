@@ -4,58 +4,72 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
+import { ListSkeleton } from '../components/Skeleton';
 import { api } from '../lib/api';
 import { useTabBarOnScroll } from '../lib/tabBarVisibility';
 import { colors, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
 
-interface CaseLite { _id: string; caseTitle: string; caseNumber: string; status: string; nextHearingDate?: string; path?: string }
+interface CaseLite { _id: string; caseTitle: string; caseNumber: string; status: string; nextHearingDate?: string }
 
 export function CaseTrackerScreen() {
   useLocale();
   const nav = useNavigation<any>();
   const [cases, setCases] = useState<CaseLite[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState('');
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     setErr('');
     const r = await api<{ cases: CaseLite[] }>('/api/cases');
+    setLoading(false);
     setRefreshing(false);
     if (!r.ok) { setErr(r.error ?? 'Failed to load'); return; }
     setCases(r.data?.cases ?? []);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(false); }, [load]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
         {...useTabBarOnScroll()}>
-        <Text style={styles.title}>{t('track_title')}</Text>
-        <Text style={styles.subtitle}>{cases.length} {cases.length === 1 ? t('track_count_one') : t('track_count_other')}</Text>
 
-        {err ? <Text style={styles.err}>{err}</Text> : null}
-
-        {cases.length === 0 && !err && !refreshing ? (
-          <Card><Text style={styles.empty}>{t('dash_noCases')}</Text></Card>
+        {loading ? (
+          <ListSkeleton rows={4} />
         ) : (
-          cases.map((c) => (
-            <Card key={c._id} onPress={() => nav.navigate('CaseDetail', { caseId: c._id, title: c.caseTitle })}>
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.caseTitle} numberOfLines={2}>{c.caseTitle}</Text>
-                  <Text style={styles.caseSub}>#{c.caseNumber} · {c.path === 'criminal' ? t('track_criminal') : t('track_highcourt')}</Text>
-                  {c.nextHearingDate && (
-                    <Text style={styles.caseSub}>{t('dash_nextHearing')}: {new Date(c.nextHearingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-                  )}
-                </View>
-                <StatusBadge status={c.status} />
-              </View>
-            </Card>
-          ))
+          <>
+            <Text style={styles.title}>{t('track_title')}</Text>
+            <Text style={styles.subtitle}>
+              {cases.length} {cases.length === 1 ? t('track_count_one') : t('track_count_other')}
+            </Text>
+
+            {err ? <Text style={styles.err}>{err}</Text> : null}
+
+            {cases.length === 0 && !err ? (
+              <Card><Text style={styles.empty}>{t('dash_noCases')}</Text></Card>
+            ) : (
+              cases.map((c) => (
+                <Card key={c._id} onPress={() => nav.navigate('CaseDetail', { caseId: c._id, title: c.caseTitle })}>
+                  <View style={styles.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.caseTitle} numberOfLines={2}>{c.caseTitle}</Text>
+                      <Text style={styles.caseSub}>#{c.caseNumber}</Text>
+                      {c.nextHearingDate && (
+                        <Text style={styles.caseSub}>
+                          {t('dash_nextHearing')}: {new Date(c.nextHearingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </Text>
+                      )}
+                    </View>
+                    <StatusBadge status={c.status} />
+                  </View>
+                </Card>
+              ))
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>

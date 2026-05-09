@@ -50,36 +50,39 @@ export function ProfileScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>{t('profile_title')}</Text>
+        <View style={styles.topSection}>
+          <Text style={styles.title}>{t('profile_title')}</Text>
 
-        <Card>
-          <Row label={t('profile_name')} value={me?.name ?? '—'} />
-          <Row label={t('profile_email')} value={me?.email ?? '—'} />
-          <Row label={t('profile_phone')} value={me?.phone ?? '—'} />
-          <Row label={t('profile_verification')} value={me?.communityProfile?.verificationStatus ?? 'pending'} />
-        </Card>
+          <Card>
+            <Row label={t('profile_name')} value={me?.name ?? '—'} />
+            <Row label={t('profile_email')} value={me?.email ?? '—'} />
+            <Row label={t('profile_phone')} value={me?.phone ?? '—'} />
+            <Row label={t('profile_verification')} value={me?.communityProfile?.verificationStatus ?? 'pending'} />
+          </Card>
 
-        <Text style={styles.section}>{t('selectLanguage')}</Text>
-        <View style={styles.langRow}>
-          {getSupportedLocales().map((loc: Locale) => {
-            const isActive = loc === current;
-            return (
-              <TouchableOpacity key={loc}
-                onPress={async () => { await setLocale(loc); }}
-                style={[styles.langBtn, isActive && styles.langBtnActive]}>
-                <Text style={[styles.langText, isActive && styles.langTextActive]}>
-                  {LOCALE_NAMES[loc]}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          <Text style={styles.section}>{t('selectLanguage')}</Text>
+          <View style={styles.langRow}>
+            {getSupportedLocales().map((loc: Locale) => {
+              const isActive = loc === current;
+              return (
+                <TouchableOpacity key={loc}
+                  onPress={async () => { await setLocale(loc); }}
+                  style={[styles.langBtn, isActive && styles.langBtnActive]}>
+                  <Text style={[styles.langText, isActive && styles.langTextActive]}>
+                    {LOCALE_NAMES[loc]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
-        <TouchableOpacity onPress={confirmLogout} style={styles.signOut}>
-          <Text style={styles.signOutText}>{t('signOut')}</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.foot}>Janmanindia Community · v0.1.0</Text>
+        <View style={styles.bottomSection}>
+          <TouchableOpacity onPress={confirmLogout} style={styles.signOut}>
+            <Text style={styles.signOutText}>{t('signOut')}</Text>
+          </TouchableOpacity>
+          <Text style={styles.foot}>Janmanindia Community · v0.1.0</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -96,7 +99,9 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  container: { padding: spacing.lg, paddingBottom: 120 },
+  container: { padding: spacing.lg, paddingBottom: 120, flexGrow: 1, justifyContent: 'space-between' },
+  topSection: {},
+  bottomSection: { marginTop: spacing.xl },
   title: { fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: spacing.lg },
   section: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: spacing.md, marginBottom: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },

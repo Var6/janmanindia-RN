@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { api } from '../lib/api';
 import { colors, radius, spacing } from '../lib/theme';
 import { useTabBarOnScroll } from '../lib/tabBarVisibility';
 
@@ -62,6 +63,37 @@ const SCHEMES: { category: string; title: string; description: string; steps: st
 ];
 
 export function RtpsScreen() {
+  const [askOpen, setAskOpen] = useState(false);
+  const [askScheme, setAskScheme] = useState<string>('');
+  const [askText, setAskText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  function openAsk(schemeTitle: string) {
+    setAskScheme(schemeTitle);
+    setAskText('');
+    setAskOpen(true);
+  }
+
+  async function submitAsk() {
+    if (!askText.trim() && !askScheme) return;
+    setSubmitting(true);
+    const message = `Eligibility query — ${askScheme}\n\n${askText.trim() || '(I think I might be eligible — please review.)'}`;
+    const r = await api('/api/community/voice-message', {
+      method: 'POST',
+      body: JSON.stringify({ text: message }),
+    });
+    setSubmitting(false);
+    setAskOpen(false);
+    if (!r.ok) {
+      const msg = r.error ?? 'Could not send your question. Please try again.';
+      if (Platform.OS === 'web') (typeof window !== 'undefined') && window.alert(msg);
+      else Alert.alert('Failed', msg);
+      return;
+    }
+    if (Platform.OS === 'web') (typeof window !== 'undefined') && window.alert('Sent. Your social worker will reach out about your eligibility.');
+    else Alert.alert('Sent', 'Your social worker will reach out about your eligibility for this scheme.');
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 96 }]} {...useTabBarOnScroll()}>
@@ -79,8 +111,16 @@ export function RtpsScreen() {
 
         {SCHEMES.map((s) => (
           <View key={s.title} style={[styles.card, { borderColor: s.tint + '55', backgroundColor: s.tint + '10' }]}>
-            <View style={[styles.badge, { backgroundColor: s.tint + '22' }]}>
-              <Text style={[styles.badgeText, { color: s.tint }]}>{s.category}</Text>
+            <View style={styles.cardTopRow}>
+              <View style={[styles.badge, { backgroundColor: s.tint + '22' }]}>
+                <Text style={[styles.badgeText, { color: s.tint }]}>{s.category}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => openAsk(s.title)}
+                style={[styles.askBtn, { borderColor: s.tint }]}
+                accessibilityLabel={`Ask if I'm eligible for ${s.title}`}>
+                <Text style={[styles.askBtnText, { color: s.tint }]}>?</Text>
+              </TouchableOpacity>
             </View>
             <Text style={styles.cardTitle}>{s.title}</Text>
             <Text style={styles.cardDesc}>{s.description}</Text>
@@ -93,9 +133,14 @@ export function RtpsScreen() {
               </View>
             ))}
 
-            <TouchableOpacity onPress={() => Linking.openURL(s.link)} style={styles.linkBtn}>
-              <Text style={[styles.linkText, { color: s.tint }]}>Apply at {hostnameOf(s.link)} →</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity onPress={() => Linking.openURL(s.link)} style={styles.linkBtn}>
+                <Text style={[styles.linkText, { color: s.tint }]}>Apply at {hostnameOf(s.link)} →</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => openAsk(s.title)} style={[styles.askInline, { borderColor: s.tint + '88' }]}>
+                <Text style={[styles.askInlineText, { color: s.tint }]}>❓ Am I eligible?</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
 
@@ -108,6 +153,34 @@ export function RtpsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <Modal visible={askOpen} animationType="slide" transparent onRequestClose={() => setAskOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Ask about eligibility</Text>
+            <Text style={styles.modalSchemeLabel}>{askScheme}</Text>
+            <Text style={styles.modalHelp}>
+              Tell us a little about your situation. Your social worker will check whether you qualify and call you back.
+            </Text>
+            <TextInput
+              value={askText}
+              onChangeText={setAskText}
+              multiline
+              placeholder="e.g. I am a daily-wage worker in Patna, my family of 4 has no health insurance — am I eligible?"
+              placeholderTextColor={colors.muted}
+              style={styles.modalInput}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setAskOpen(false)} style={[styles.modalBtn, styles.modalBtnGhost]} disabled={submitting}>
+                <Text style={styles.modalBtnGhostText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={submitAsk} style={[styles.modalBtn, styles.modalBtnPrimary, submitting && { opacity: 0.6 }]} disabled={submitting}>
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnPrimaryText}>Send to social worker</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -138,4 +211,22 @@ const styles = StyleSheet.create({
   footer: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center', marginTop: spacing.lg },
   footerText: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 18 },
   footerLink: { color: colors.accent, fontWeight: '700' },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  askBtn: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  askBtnText: { fontSize: 16, fontWeight: '800' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, gap: spacing.sm },
+  askInline: { paddingHorizontal: spacing.md, paddingVertical: 8, borderWidth: 1, borderRadius: radius.md },
+  askInlineText: { fontSize: 12, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: colors.surface, padding: spacing.lg, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.sm },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+  modalSchemeLabel: { fontSize: 13, fontWeight: '700', color: colors.accent },
+  modalHelp: { fontSize: 13, color: colors.muted, lineHeight: 18, marginBottom: spacing.sm },
+  modalInput: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, color: colors.text, fontSize: 14, minHeight: 100, textAlignVertical: 'top' },
+  modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  modalBtn: { flex: 1, paddingVertical: spacing.md, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  modalBtnGhost: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
+  modalBtnGhostText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  modalBtnPrimary: { backgroundColor: colors.accent },
+  modalBtnPrimaryText: { fontSize: 14, fontWeight: '700', color: colors.accentText },
 });

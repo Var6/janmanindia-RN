@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
+import { Skeleton, SkeletonRow } from '../components/Skeleton';
 import { api, getMe } from '../lib/api';
 import { colors, radius, spacing } from '../lib/theme';
 import { t, useLocale } from '../lib/useLocale';
@@ -29,9 +30,10 @@ export function DashboardScreen() {
   const [cases, setCases] = useState<CaseLite[]>([]);
   const [appts, setAppts] = useState<AptLite[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     try {
       const me = await getMe();
       if (me) setName(me.name);
@@ -43,16 +45,17 @@ export function DashboardScreen() {
       if (a.ok && a.data?.appointments) setAppts(a.data.appointments.slice(0, 3));
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(false); }, [load]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         contentContainerStyle={[styles.container, { paddingBottom: 96 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
         {...useTabBarOnScroll()}>
 
         <Text style={styles.greet}>{t('dash_hi')} {name ? name.split(' ')[0] : ''} 👋</Text>
@@ -70,7 +73,12 @@ export function DashboardScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>{t('dash_myCases')}</Text>
-        {cases.length === 0 ? (
+        {loading ? (
+          <>
+            <SkeletonRow />
+            <SkeletonRow />
+          </>
+        ) : cases.length === 0 ? (
           <Card>
             <Text style={styles.empty}>{t('dash_noCases')}</Text>
           </Card>
@@ -94,7 +102,9 @@ export function DashboardScreen() {
         )}
 
         <Text style={styles.sectionTitle}>{t('dash_recentApts')}</Text>
-        {appts.length === 0 ? (
+        {loading ? (
+          <SkeletonRow />
+        ) : appts.length === 0 ? (
           <Card><Text style={styles.empty}>{t('dash_noApts')}</Text></Card>
         ) : (
           appts.map((a) => (
