@@ -102,6 +102,18 @@ export function RtpsScreen() {
           Know your entitlements. Tap any scheme to apply on the official government portal.
         </Text>
 
+        <View style={styles.disclaimer}>
+          <Text style={styles.disclaimerIcon}>ℹ️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.disclaimerTitle}>Not a government app</Text>
+            <Text style={styles.disclaimerBody}>
+              This app is operated by <Text style={{ fontWeight: '700' }}>Janman People's Foundation</Text>, an independent
+              non-profit. It is not affiliated with, endorsed by, or operated by any government entity. Information below is
+              summarised from official sources — always verify on the linked .gov.in portals before applying.
+            </Text>
+          </View>
+        </View>
+
         <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>Need help applying?</Text>
           <Text style={styles.helpBody}>
@@ -194,6 +206,10 @@ const styles = StyleSheet.create({
   container: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: 13, color: colors.muted, marginTop: 4, marginBottom: spacing.lg, lineHeight: 18 },
+  disclaimer: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#f59e0b', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
+  disclaimerIcon: { fontSize: 22, marginTop: 2 },
+  disclaimerTitle: { fontSize: 13, fontWeight: '800', color: '#92400e', marginBottom: 4 },
+  disclaimerBody: { fontSize: 12, color: '#78350f', lineHeight: 17 },
   helpCard: { backgroundColor: colors.accent + '15', borderWidth: 1, borderColor: colors.accent + '40', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg },
   helpTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
   helpBody: { fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 17 },
